@@ -1,0 +1,25 @@
+{
+  "name": "confluence-contract",
+  "version": "1.0.0",
+  "description": "Confluence: a semantic merge coordination GenLayer Intelligent Contract, plus a genlayer-js live test suite.",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "livetest": "node livetest/run_all.mjs"
+  },
+  "keywords": [
+    "genlayer",
+    "intelligent-contract",
+    "consensus",
+    "escrow"
+  ],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "ethers": "^6.17.0",
+    "genlayer-js": "^1.1.8"
+  }
+}

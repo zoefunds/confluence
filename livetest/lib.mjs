@@ -20,7 +20,7 @@ const chains = require("genlayer-js/chains");
 
 export const KEYSTORE_DIR = path.join(process.env.HOME, ".genlayer/keystores");
 export const KEYSTORE_PASSWORD = process.env.CONFLUENCE_KEYSTORE_PASSWORD || "confluence-test-pw-1";
-export const CONTRACT_ADDRESS = process.env.CONFLUENCE_CONTRACT || "0x3a26aa4289B723afF33D241e215D73dD711f0b9A";
+export const CONTRACT_ADDRESS = process.env.CONFLUENCE_CONTRACT || "0x0175e2c837E2b9516e1c2F79fC6435aA894EF94B";
 
 export function gen(amount) {
   return ethers.parseUnits(String(amount), 18);

@@ -5,7 +5,7 @@ coordination for multi-agent systems** sharing one piece of state (a config
 file, a project plan, a protocol manifest, a policy document — anything
 modeled as a JSON object).
 
-Live deployment (StudioNet): [`0x3a26aa4289B723afF33D241e215D73dD711f0b9A`](https://studio.genlayer.com/)
+Live deployment (StudioNet): [`0x0175e2c837E2b9516e1c2F79fC6435aA894EF94B`](https://studio.genlayer.com/)
 
 ## Table of contents
 
@@ -177,7 +177,7 @@ genlayer account create --name confluence-alice --password "<your-password>"
 genlayer account create --name confluence-bob   --password "<your-password>"
 
 CONFLUENCE_KEYSTORE_PASSWORD="<your-password>" \
-CONFLUENCE_CONTRACT="0x3a26aa4289B723afF33D241e215D73dD711f0b9A" \
+CONFLUENCE_CONTRACT="0x0175e2c837E2b9516e1c2F79fC6435aA894EF94B" \
 node livetest/run_all.mjs
 ```
 

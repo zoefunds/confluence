@@ -247,14 +247,44 @@ def test_attest_image_evidence_gates_merge_eligibility(direct_vm, direct_deploy,
 
     direct_vm.mock_llm(
         r".*Classify this image.*",
-        json.dumps({"document_type": "signed_approval", "key_fact": "Signed migration approval form"}),
+        json.dumps({"document_type": "signed_approval", "key_fact": " Signed   migration\napproval form "}),
     )
     status = contract.attest_image_evidence(pid)
     assert status == "attested"
     assert contract.get_proposal(pid)["image_document_type"] == "signed_approval"
+    assert contract.get_proposal(pid)["image_key_fact"] == "Signed   migration\napproval form"
 
     new_version = contract.commit_solo(pid)
     assert new_version == "v1"
+
+
+def test_merge_excludes_informational_image_fact(direct_vm, direct_deploy, direct_alice, direct_bob):
+    """Unverified image prose must never influence semantic adjudication."""
+    contract = deploy(direct_deploy)
+    image_b64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+
+    direct_vm.sender = direct_alice
+    direct_vm.value = ONE_GEN
+    p1 = contract.submit_proposal(
+        "v0", "network.region", '"eu-west"', "move region",
+        image_b64=image_b64,
+    )
+    direct_vm.sender = direct_bob
+    direct_vm.value = ONE_GEN
+    p2 = contract.submit_proposal("v0", "auth.mfa_required", "true", "require MFA")
+
+    direct_vm.mock_llm(
+        r".*Classify this image.*",
+        json.dumps({"document_type": "signed_approval", "key_fact": "Approved EU migration"}),
+    )
+    assert contract.attest_image_evidence(p1) == "attested"
+
+    direct_vm.mock_llm(
+        r"(?s)^(?!.*Approved EU migration).*Attested image document type: signed_approval.*",
+        json.dumps({"verdict": "commute", "subsumed": None, "reasoning": "compatible"}),
+    )
+    direct_vm.sender = direct_alice
+    assert contract.attempt_merge(p1, p2) == "v1"
 
 
 # ---------------------------------------------------------------------------

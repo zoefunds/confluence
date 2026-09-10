@@ -220,13 +220,14 @@ async function main() {
   await step("attest_image_evidence (p7) -> real vision-model consensus round", async () => {
     const { returnValue } = await write(bob, "attest_image_evidence", [p7], {});
     // Either outcome is a legitimate, fully-exercised consensus result:
-    // "attested" (validators agreed on a document_type) or "failed" (the model
-    // didn't converge on the bounded enum for this near-blank test image).
+    // "attested" (validators agreed on the consequential document_type) or
+    // "failed" (the model didn't converge on that bounded classification for
+    // this near-blank test image). The free-text key_fact is display-only.
     if (returnValue !== "attested" && returnValue !== "failed") {
       throw new Error(`unexpected image evidence status '${returnValue}'`);
     }
     const p = await call(bob, "get_proposal", [p7]);
-    console.log(`    image_evidence_status=${p.image_evidence_status} document_type=${p.image_document_type || "(n/a)"}`);
+    console.log(`    image_evidence_status=${p.image_evidence_status} document_type=${p.image_document_type || "(n/a)"} key_fact=${p.image_key_fact || "(n/a)"}`);
   });
 
   // ---- Scenario 7: subsumes verdict ----

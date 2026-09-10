@@ -5,7 +5,7 @@ coordination for multi-agent systems** sharing one piece of state (a config
 file, a project plan, a protocol manifest, a policy document — anything
 modeled as a JSON object).
 
-Live deployment (StudioNet): [`0xE0f8DA39dE92b0fE7b440e2061F57f400625cA52`](https://studio.genlayer.com/)
+Live deployment (StudioNet): [`0x3a26aa4289B723afF33D241e215D73dD711f0b9A`](https://studio.genlayer.com/)
 
 ## Table of contents
 
@@ -70,20 +70,26 @@ equivalence principle:
   for stable/static evidence sources, as noted in the contract's docstring.
 - `attest_image_evidence` sends the (base64-decoded) image to a vision model
   via `gl.nondet.exec_prompt(images=[...])`, with a custom comparative
-  validator that gates consensus on a single bounded `document_type` enum
+  validator that gates consensus on the bounded `document_type` enum
   (`config_screenshot`, `diagram`, `signed_approval`, `chat_or_email_excerpt`,
-  `chart_or_dashboard`, `other`); the free-text `key_fact` is stored for
-  human/agent readers but is never a consensus gate.
+  `chart_or_dashboard`, `other`). The model's free-text `key_fact` is stored
+  solely as an informational display field and is never supplied to merge
+  adjudication or any other consequential decision. This prevents
+  contradictory image prose from influencing a merge while avoiding fragile
+  exact-equality comparisons between independently generated LLM sentences.
 
-The result is written to the proposal once, as a short capped digest. The
-later semantic-merge judgment reads that already-agreed digest instead of
-re-fetching a live page or re-describing an image mid-merge — so a page that
-changed between two calls, or two slightly different captions, can never
-become a fresh source of validator disagreement during the merge itself.
-This is the main structural reason this contract is designed to avoid
-`Undetermined` transaction outcomes: nondeterministic work happens exactly
-once per fact, is reduced to a bounded value immediately, and everything
-downstream reads that bounded value deterministically.
+Pending evidence blocks `commit_solo` and `attempt_merge`. If an evidence
+source fails, it supplies no evidence-derived data to either operation; the
+contract never retries a live fetch or vision call from inside merge
+adjudication.
+
+The contract stores evidence once. Merge adjudication reads the consensus
+attested web digest and image document type rather than re-fetching a page or
+re-describing an image. The informational image fact is specifically excluded.
+Thus a changed page or a different image caption cannot become a fresh source
+of disagreement inside the merge itself. This keeps consequential
+nondeterministic work bounded while avoiding fragile exact comparison of LLM
+prose.
 
 ## Escrow
 
@@ -150,9 +156,10 @@ pip install genlayer-test
 pytest tests/direct/ -v
 ```
 
-15 tests cover: bond validation, the deterministic structural/overlap
+16 tests cover: bond validation, the deterministic structural/overlap
 conflict gate, `commute`/`conflict`/`subsumes` verdicts, both evidence
--attestation flows, every escrow exit (merged, subsumed, cancelled,
+-attestation flows (including exclusion of informational image facts from
+merge adjudication), every escrow exit (merged, subsumed, cancelled,
 blocked-then-cancelled, timeout-guard), and version-graph provenance.
 
 ### Live test suite (real network, nothing mocked)
@@ -170,7 +177,7 @@ genlayer account create --name confluence-alice --password "<your-password>"
 genlayer account create --name confluence-bob   --password "<your-password>"
 
 CONFLUENCE_KEYSTORE_PASSWORD="<your-password>" \
-CONFLUENCE_CONTRACT="0xE0f8DA39dE92b0fE7b440e2061F57f400625cA52" \
+CONFLUENCE_CONTRACT="0x3a26aa4289B723afF33D241e215D73dD711f0b9A" \
 node livetest/run_all.mjs
 ```
 
@@ -179,20 +186,19 @@ merge, a deterministic `conflict` (no model call), bond cancellation, web
 -evidence attestation gating a commit, image-evidence attestation, a real
 LLM-judged `subsumes` verdict, and a timeout-guard rejection — printing
 pass/fail per step and failing the process (exit code 1) if anything
-regresses.
+regresses. The StudioNet deployment above was verified on 2026-09-10: all
+26 steps passed, including a successful image attestation (`document_type:
+other`). The two intentionally pending test proposals were then cancelled,
+leaving `total_locked_wei` at `0`.
 
 ## A note on the `genlayer` CLI
 
 The published `genlayer` CLI hardcodes `value: 0n` on `genlayer write`, so it
 cannot drive `@gl.public.write.payable` methods (`submit_proposal` locks a
-real GEN bond) — and independently, `genlayer call` / `genlayer write`
-against this deployment returned an opaque `exit_code 1` for every method,
-including trivial zero-argument reads, while the same calls succeed
-immediately through `genlayer-js` directly. `livetest/lib.mjs` therefore
-talks to the network via `genlayer-js` (`createClient`/`createAccount`),
-signing with dedicated named keystores loaded straight from
-`~/.genlayer/keystores/<name>.json` rather than going through the CLI's one
-global "active account."
+real GEN bond). The live suite therefore uses `genlayer-js`
+(`createClient`/`createAccount`) and dedicated named keystores loaded from
+`~/.genlayer/keystores/<name>.json` rather than the CLI's global active
+account.
 
 ## Example flow
 

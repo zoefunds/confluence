@@ -52,8 +52,10 @@ aimed at keeping validator agreement high:
 2. External facts (a fetched web page, an uploaded image) are pulled into
    consensus *once*, at proposal-submission time, through their own
    dedicated equivalence-principle calls (`attest_web_evidence`,
-   `attest_image_evidence`). The result is written to the proposal as a
-   short, stable digest. The later semantic-merge judgment
+   `attest_image_evidence`). Image attestation reaches agreement on its
+   bounded document type before that consequential field is written to the
+   proposal. Any free-text image fact is display-only. The later
+   semantic-merge judgment
    (`attempt_merge`) reads that already-agreed digest instead of
    re-fetching a live page or re-describing an image — so a page that
    changed between two calls, or two slightly different image captions,
@@ -129,8 +131,8 @@ VERDICT_SUBSUMES = "subsumes"
 VERDICT_AMBIGUOUS = "ambiguous"
 VALID_VERDICTS = (VERDICT_COMMUTE, VERDICT_CONFLICT, VERDICT_SUBSUMES, VERDICT_AMBIGUOUS)
 
-# Image classification vocabulary used by attest_image_evidence. Also a
-# closed, bounded label set — the compared field in that consensus round.
+# Image classification vocabulary used by attest_image_evidence. This is the
+# sole image-derived field that can reach consequential merge adjudication.
 IMAGE_DOC_TYPES = (
     "config_screenshot",
     "diagram",
@@ -518,10 +520,10 @@ class Confluence(gl.Contract):
         Only `gl.message.value` is trusted as the bond amount — never a
         parameter. The proposal starts PENDING and, if it carries external
         evidence or an image, EVIDENCE_PENDING until `attest_web_evidence`
-        / `attest_image_evidence` is called. Evidence must be attested
-        before the proposal is eligible for `commit_solo` or
-        `attempt_merge`, so every semantic judgment is grounded in
-        consensus-agreed facts rather than a live re-fetch.
+        / `attest_image_evidence` is called. Pending evidence blocks
+        `commit_solo` and `attempt_merge`; attested evidence supplies its
+        consensus-agreed field(s), while failed evidence supplies none.
+        Semantic judgment therefore never performs a live re-fetch.
         """
         self._get_version_dict(base_version_id)  # raises if base is unknown
 
@@ -621,11 +623,13 @@ class Confluence(gl.Contract):
         return p["web_evidence_status"]
 
     # ======================================================================
-    # WRITE: attest_image_evidence — vision-model classification brought to
-    # consensus via a custom comparative validator. Only the bounded
-    # `document_type` enum is compared field-for-field; the free-text
-    # `key_fact` is informational only and is never used as a consensus
-    # gate, exactly to avoid free-form-text disagreement.
+    # WRITE: attest_image_evidence — vision-model interpretation brought to
+    # consensus via a custom comparative validator. `document_type` is the
+    # sole bounded field compared here and the only image-derived value used
+    # in merge adjudication. `key_fact` is display-only and is deliberately
+    # excluded from every consequential downstream decision: requiring exact
+    # equality for LLM prose would cause otherwise-valid image rounds to go
+    # Undetermined without improving merge safety.
     # ======================================================================
     @gl.public.write
     def attest_image_evidence(self, proposal_id: str) -> str:
@@ -661,7 +665,6 @@ class Confluence(gl.Contract):
             if not isinstance(leaders_res, gl.vm.Return):
                 return _handle_leader_error(leaders_res, leader_fn)
             mine = leader_fn()
-            # Only the bounded enum field is a consensus gate.
             return mine["document_type"] == leaders_res.calldata["document_type"]
 
         try:
@@ -791,7 +794,8 @@ class Confluence(gl.Contract):
     # Nondeterministic semantic judgment. Both leader and validator run
     # the identical, purely-computational prompt construction below
     # (reading only already-attested, stored evidence — no live fetch, no
-    # fresh vision call), then compare exactly two bounded fields:
+    # fresh vision call). Free-text image facts are display-only and never
+    # enter this prompt. This round compares exactly two bounded fields:
     # `verdict` (a 4-way enum) and, when applicable, `subsumed` (a 2-way
     # enum). This is the comparative equivalence principle applied by
     # hand for full control over the tolerance rule.
@@ -805,9 +809,7 @@ class Confluence(gl.Contract):
             if p["web_evidence_status"] == EVIDENCE_ATTESTED:
                 lines.append(f"Attested web evidence: {p['web_evidence_digest']}")
             if p["image_evidence_status"] == EVIDENCE_ATTESTED:
-                lines.append(
-                    f"Attested image ({p['image_document_type']}): {p['image_key_fact']}"
-                )
+                lines.append(f"Attested image document type: {p['image_document_type']}")
             return "\n".join(lines)
 
         prompt = f"""You are a structural/semantic merge judge for a shared state store.
